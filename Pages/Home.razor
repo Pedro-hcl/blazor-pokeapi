@@ -1,0 +1,115 @@
+﻿@page "/"
+@inject HttpClient Http
+@using BlazorPokeApi.Models
+
+<PageTitle>BlazorPokeApi - Consulta de Pokémon</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Consulta de Personagem - PokéAPI</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Formulário de Busca -->
+                    <div class="mb-3">
+                        <label for="pokemonInput" class="form-label">Digite o nome do personagem (ex: ditto):</label>
+                        <div class="input-group">
+                            <input id="pokemonInput" 
+                                   type="text" 
+                                   class="form-control" 
+                                   placeholder="Ex: ditto, pikachu..." 
+                                   @bind="nomePokemonInput" />
+                            <button class="btn btn-danger" @onclick="ConsultarPokemon" disabled="@carregando">
+                                @if (carregando)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span> Buscando...</span>
+                                }
+                                else
+                                {
+                                    <span>Buscar</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mensagem de Erro -->
+                    @if (!string.IsNullOrEmpty(mensagemErro))
+                    {
+                        <div class="alert alert-danger mt-3" role="alert">
+                            @mensagemErro
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Resultado da Consulta -->
+            @if (pokemonResultado != null)
+            {
+                <div class="card shadow-sm mt-4 text-center">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">@pokemonResultado.Name.ToUpper()</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(pokemonResultado.Sprites?.FrontDefault))
+                        {
+                            <img src="@pokemonResultado.Sprites.FrontDefault" alt="@pokemonResultado.Name" style="width: 150px; height: 150px;" class="mb-3" />
+                        }
+                        <p><strong>ID:</strong> @pokemonResultado.Id</p>
+                        <p><strong>Nome:</strong> @pokemonResultado.Name</p>
+                        <p><strong>Altura:</strong> @pokemonResultado.Height</p>
+                        <p><strong>Peso:</strong> @pokemonResultado.Weight</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string nomePokemonInput = string.Empty;
+    private PokemonResponse? pokemonResultado;
+    private string mensagemErro = string.Empty;
+    private bool carregando = false;
+
+    private async Task ConsultarPokemon()
+    {
+        mensagemErro = string.Empty;
+        pokemonResultado = null;
+
+        if (string.IsNullOrWhiteSpace(nomePokemonInput))
+        {
+            mensagemErro = "Por favor, digite o nome de um personagem.";
+            return;
+        }
+
+        carregando = true;
+
+        try
+        {
+            var termoBusca = nomePokemonInput.Trim().ToLower();
+            pokemonResultado = await Http.GetFromJsonAsync<PokemonResponse>($"https://pokeapi.co/api/v2/pokemon/{termoBusca}");
+        }
+        catch (HttpRequestException ex)
+        {
+            if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                mensagemErro = "Personagem não encontrado na PokéAPI.";
+            }
+            else
+            {
+                mensagemErro = "Ocorreu um erro ao consultar a API. Tente novamente mais tarde.";
+            }
+        }
+        catch (Exception)
+        {
+            mensagemErro = "Erro inesperado ao processar a requisição.";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}
